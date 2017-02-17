@@ -35,9 +35,17 @@ Then, register class alias by adding an entry in aliases section
 ];
 ```
 
-Finally, from the command line again, run `php artisan vendor:publish` to publish the default configuration file. 
+
+Finally, from the command line again, run 
+
+```
+php artisan vendor:publish --tag=config
+``` 
+
+to publish the default configuration file. 
 This will publish a configuration file named `onesignal.php` which includes your OneSignal authorization keys.
 
+> **Note:** If the previous command does not publish the config file successfully, please check the steps involving *providers* and *aliases* in the `config/app.php` file.
 
 
 ## Configuration
@@ -55,8 +63,9 @@ You can easily send a message to all registered users with the command
     OneSignal::sendNotificationToAll("Some Message", $url);
     OneSignal::sendNotificationToAll("Some Message", $url, $data);
     OneSignal::sendNotificationToAll("Some Message", $url, $data, $buttons);
+    OneSignal::sendNotificationToAll("Some Message", $url, $data, $buttons,$schedule);
     
-`$url` , `$data` and `$buttons` fields are exceptional. If you provide a `$url` parameter, users will be redirecting to that url.
+`$url` , `$data` , `$buttons` and `$schedule` fields are exceptional. If you provide a `$url` parameter, users will be redirecting to that url.
     
 
 ### Sending a Notification To A Specific User
@@ -67,9 +76,10 @@ After storing a user's tokens in a table, you can simply send a message with
     OneSignal::sendNotificationToUser("Some Message", $userId, $url);
     OneSignal::sendNotificationToUser("Some Message", $userId, $url, $data);
     OneSignal::sendNotificationToUser("Some Message", $userId, $url, $data, $buttons);
+    OneSignal::sendNotificationToUser("Some Message", $userId, $url, $data, $buttons,$schedule);
     
-`$userId` is the user's unique id where he/she is registered for notifications. Read https://documentation.onesignal.com/docs/website-sdk-api#getUserId for additional details.
-`$url` , `$data` and `$buttons` fields are exceptional. If you provide a `$url` parameter, users will be redirecting to that url.
+`$userId` is the user's unique id where he/she is registered for notifications. Read https://documentation.onesignal.com/docs/web-push-tagging-guide for additional details.
+`$url` , `$data` , `$buttons` and `$schedule` fields are exceptional. If you provide a `$url` parameter, users will be redirecting to that url.
 
 
 ### Sending a Notification To Segment
@@ -80,8 +90,9 @@ You can simply send a notification to a specific segment with
     OneSignal::sendNotificationToSegment("Some Message", $segment, $url);
     OneSignal::sendNotificationToSegment("Some Message", $segment, $url, $data);
     OneSignal::sendNotificationToSegment("Some Message", $segment, $url, $data, $buttons);
+    OneSignal::sendNotificationToSegment("Some Message", $segment, $url, $data, $buttons,$schedule);
     
-`$url` , `$data` and `$buttons` fields are exceptional. If you provide a `$url` parameter, users will be redirecting to that url.
+`$url` , `$data` , `$buttons` and `$schedule` fields are exceptional. If you provide a `$url` parameter, users will be redirecting to that url.
 
 ### Sending a Custom Notification
 
@@ -95,5 +106,5 @@ You can send a async custom message with
 
     OneSignal::async()->sendNotificationCustom($parameters);
     
-Please refer to https://documentation.onesignal.com/docs/notifications-create-notification for all customizable parameters.
+Please refer to https://documentation.onesignal.com/reference for all customizable parameters.
 
