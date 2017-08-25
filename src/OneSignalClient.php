@@ -107,7 +107,37 @@ class OneSignalClient
             $params['data'] = $data;
         }
 
-        if (isset($button)) {
+        if (isset($buttons)) {
+            $params['buttons'] = $buttons;
+        }
+
+        if(isset($schedule)){
+            $params['send_after'] = $schedule;
+        }
+
+        $this->sendNotificationCustom($params);
+    }
+
+    public function sendNotificationUsingTags($message, $tags, $url = null, $data = null, $buttons = null, $schedule = null) {
+        $contents = array(
+            "en" => $message
+        );
+
+        $params = array(
+            'app_id' => $this->appId,
+            'contents' => $contents,
+            'tags' => $tags,
+        );
+
+        if (isset($url)) {
+            $params['url'] = $url;
+        }
+
+        if (isset($data)) {
+            $params['data'] = $data;
+        }
+
+        if (isset($buttons)) {
             $params['buttons'] = $buttons;
         }
 
@@ -137,7 +167,7 @@ class OneSignalClient
             $params['data'] = $data;
         }
 
-        if (isset($button)) {
+        if (isset($buttons)) {
             $params['buttons'] = $buttons;
         }
 
@@ -167,14 +197,14 @@ class OneSignalClient
             $params['data'] = $data;
         }
 
-        if (isset($button)) {
+        if (isset($buttons)) {
             $params['buttons'] = $buttons;
         }
 
         if(isset($schedule)){
             $params['send_after'] = $schedule;
         }
-        
+
         $this->sendNotificationCustom($params);
     }
 
