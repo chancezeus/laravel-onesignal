@@ -7,290 +7,427 @@ use GuzzleHttp\Client;
 class OneSignalClient
 {
     const API_URL = "https://onesignal.com/api/v1";
-
     const ENDPOINT_NOTIFICATIONS = "/notifications";
     const ENDPOINT_PLAYERS = "/players";
 
-    private $client;
-    private $headers;
-    private $appId;
-    private $restApiKey;
-    private $userAuthKey;
-    private $additionalParams;
-
-    /**
-     * @var bool
-     */
+    /** @var bool */
     public $requestAsync = false;
 
-    /**
-     * @var Callable
-     */
+    /** @var \GuzzleHttp\Client */
+    private $client;
+
+    /** @var string */
+    private $appId;
+
+    /** @var string */
+    private $restApiKey;
+
+    /** @var array */
+    private $additionalParams;
+
+    /** @var callable */
     private $requestCallback;
+
+    /**
+     * OneSignalClient constructor
+     *
+     * @param string $appId
+     * @param string $restApiKey
+     */
+    public function __construct(string $appId, string $restApiKey)
+    {
+        $this->appId = $appId;
+        $this->restApiKey = $restApiKey;
+
+        $this->client = new Client();
+        $this->additionalParams = [];
+    }
 
     /**
      * Turn on, turn off async requests
      *
      * @param bool $on
-     * @return $this
+     * @return OneSignalClient
      */
-    public function async($on = true)
+    public function async(bool $on = true): OneSignalClient
     {
         $this->requestAsync = $on;
+
         return $this;
     }
 
     /**
      * Callback to execute after OneSignal returns the response
-     * @param Callable $requestCallback
-     * @return $this
+     *
+     * @param callable $requestCallback
+     * @return OneSignalClient
      */
-    public function callback(Callable $requestCallback)
+    public function callback(callable $requestCallback): OneSignalClient
     {
         $this->requestCallback = $requestCallback;
+
         return $this;
     }
 
-    public function __construct($appId, $restApiKey, $userAuthKey)
+    /**
+     * @return string
+     */
+    public function testCredentials(): string
     {
-        $this->appId = $appId;
-        $this->restApiKey = $restApiKey;
-        $this->userAuthKey = $userAuthKey;
-
-        $this->client = new Client();
-        $this->headers = ['headers' => []];
-        $this->additionalParams = [];
+        return "APP ID: " . $this->appId . " REST: " . $this->restApiKey;
     }
 
-    public function testCredentials() {
-        return "APP ID: ".$this->appId." REST: ".$this->restApiKey;
-    }
-
-    private function requiresAuth() {
-        $this->headers['headers']['Authorization'] = 'Basic '.$this->restApiKey;
-    }
-
-    private function usesJSON() {
-        $this->headers['headers']['Content-Type'] = 'application/json';
-    }
-
-    public function addParams($params = [])
+    /**
+     * @param array $params
+     * @return OneSignalClient
+     */
+    public function addParams($params = []): OneSignalClient
     {
         $this->additionalParams = $params;
 
         return $this;
     }
 
-    public function setParam($key, $value)
+    /**
+     * @param string $key
+     * @param mixed $value
+     * @return OneSignalClient
+     */
+    public function setParam($key, $value): OneSignalClient
     {
         $this->additionalParams[$key] = $value;
 
         return $this;
     }
 
-    public function sendNotificationToUser($message, $userId, $url = null, $data = null, $buttons = null, $schedule = null) {
-        $contents = array(
+    /**
+     * @param string $message
+     * @param string|null $url
+     * @param array|null $data
+     * @param array|null $buttons
+     * @param string|\DateTimeInterface|null $schedule
+     * @return \GuzzleHttp\Promise\PromiseInterface|\Psr\Http\Message\ResponseInterface
+     */
+    public function sendNotificationToAll(string $message, string $url = null, array $data = null, array $buttons = null, $schedule = null)
+    {
+        $contents = [
             "en" => $message
-        );
+        ];
 
-        $params = array(
+        $params = [
             'app_id' => $this->appId,
             'contents' => $contents,
-            'include_player_ids' => array($userId)
-        );
+            'included_segments' => ['All']
+        ];
 
-        if (isset($url)) {
+        if (!is_null($url)) {
             $params['url'] = $url;
         }
 
-        if (isset($data)) {
+        if (!is_null($data)) {
             $params['data'] = $data;
         }
 
-        if (isset($buttons)) {
+        if (!is_null($buttons)) {
             $params['buttons'] = $buttons;
         }
 
-        if(isset($schedule)){
+        if (!is_null($schedule)) {
             $params['send_after'] = $schedule;
         }
 
-        $this->sendNotificationCustom($params);
+        return $this->sendNotificationCustom($params);
     }
 
-    public function sendNotificationUsingTags($message, $tags, $url = null, $data = null, $buttons = null, $schedule = null) {
-        $contents = array(
+    /**
+     * @param string $message
+     * @param string $segment
+     * @param string|null $url
+     * @param array|null $data
+     * @param array|null $buttons
+     * @param string|\DateTimeInterface|null $schedule
+     * @return \GuzzleHttp\Promise\PromiseInterface|\Psr\Http\Message\ResponseInterface
+     */
+    public function sendNotificationToSegment(string $message, string $segment, string $url = null, array $data = null, array $buttons = null, $schedule = null)
+    {
+        $contents = [
             "en" => $message
-        );
+        ];
 
-        $params = array(
-            'app_id' => $this->appId,
-            'contents' => $contents,
-            'tags' => $tags,
-        );
-
-        if (isset($url)) {
-            $params['url'] = $url;
-        }
-
-        if (isset($data)) {
-            $params['data'] = $data;
-        }
-
-        if (isset($buttons)) {
-            $params['buttons'] = $buttons;
-        }
-
-        if(isset($schedule)){
-            $params['send_after'] = $schedule;
-        }
-
-        $this->sendNotificationCustom($params);
-    }
-
-    public function sendNotificationToAll($message, $url = null, $data = null, $buttons = null, $schedule = null) {
-        $contents = array(
-            "en" => $message
-        );
-
-        $params = array(
-            'app_id' => $this->appId,
-            'contents' => $contents,
-            'included_segments' => array('All')
-        );
-
-        if (isset($url)) {
-            $params['url'] = $url;
-        }
-
-        if (isset($data)) {
-            $params['data'] = $data;
-        }
-
-        if (isset($buttons)) {
-            $params['buttons'] = $buttons;
-        }
-
-        if(isset($schedule)){
-            $params['send_after'] = $schedule;
-        }
-
-        $this->sendNotificationCustom($params);
-    }
-
-    public function sendNotificationToSegment($message, $segment, $url = null, $data = null, $buttons = null, $schedule = null) {
-        $contents = array(
-            "en" => $message
-        );
-
-        $params = array(
+        $params = [
             'app_id' => $this->appId,
             'contents' => $contents,
             'included_segments' => [$segment]
-        );
+        ];
 
-        if (isset($url)) {
+        if (!is_null($url)) {
             $params['url'] = $url;
         }
 
-        if (isset($data)) {
+        if (!is_null($data)) {
             $params['data'] = $data;
         }
 
-        if (isset($buttons)) {
+        if (!is_null($buttons)) {
             $params['buttons'] = $buttons;
         }
 
-        if(isset($schedule)){
+        if (!is_null($schedule)) {
             $params['send_after'] = $schedule;
         }
 
-        $this->sendNotificationCustom($params);
+        return $this->sendNotificationCustom($params);
+    }
+
+    /**
+     * @param string $message
+     * @param string $userId
+     * @param string|null $url
+     * @param array|null $data
+     * @param array|null $buttons
+     * @param string|\DateTimeInterface|null $schedule
+     * @return \GuzzleHttp\Promise\PromiseInterface|\Psr\Http\Message\ResponseInterface
+     */
+    public function sendNotificationToUser(string $message, string $userId, string $url = null, array $data = null, array $buttons = null, $schedule = null)
+    {
+        $contents = [
+            "en" => $message
+        ];
+
+        $params = [
+            'app_id' => $this->appId,
+            'contents' => $contents,
+            'include_player_ids' => [$userId]
+        ];
+
+        if (!is_null($url)) {
+            $params['url'] = $url;
+        }
+
+        if (!is_null($data)) {
+            $params['data'] = $data;
+        }
+
+        if (!is_null($buttons)) {
+            $params['buttons'] = $buttons;
+        }
+
+        if (!is_null($schedule)) {
+            $params['send_after'] = $schedule;
+        }
+
+        return $this->sendNotificationCustom($params);
+    }
+
+    /**
+     * @param string $message
+     * @param array $filters
+     * @param string|null $url
+     * @param array|null $data
+     * @param array|null $buttons
+     * @param string|\DateTimeInterface|null $schedule
+     * @return \GuzzleHttp\Promise\PromiseInterface|\Psr\Http\Message\ResponseInterface
+     */
+    public function sendNotificationUsingFilters(string $message, array $filters, string $url = null, array $data = null, array $buttons = null, $schedule = null)
+    {
+        $contents = [
+            "en" => $message
+        ];
+
+        $params = [
+            'app_id' => $this->appId,
+            'contents' => $contents,
+            'filters' => $filters,
+        ];
+
+        if (!is_null($url)) {
+            $params['url'] = $url;
+        }
+
+        if (!is_null($data)) {
+            $params['data'] = $data;
+        }
+
+        if (!is_null($buttons)) {
+            $params['buttons'] = $buttons;
+        }
+
+        if (!is_null($schedule)) {
+            $params['send_after'] = $schedule;
+        }
+
+        return $this->sendNotificationCustom($params);
+    }
+
+    /**
+     * @param string $message
+     * @param array $tags
+     * @param string|null $url
+     * @param array|null $data
+     * @param array|null $buttons
+     * @param string|\DateTimeInterface|null $schedule
+     * @return \GuzzleHttp\Promise\PromiseInterface|\Psr\Http\Message\ResponseInterface
+     */
+    public function sendNotificationUsingTags(string $message, array $tags, string $url = null, array $data = null, array $buttons = null, $schedule = null)
+    {
+        $contents = [
+            "en" => $message
+        ];
+
+        $params = [
+            'app_id' => $this->appId,
+            'contents' => $contents,
+            'tags' => $tags,
+        ];
+
+        if (!is_null($url)) {
+            $params['url'] = $url;
+        }
+
+        if (!is_null($data)) {
+            $params['data'] = $data;
+        }
+
+        if (!is_null($buttons)) {
+            $params['buttons'] = $buttons;
+        }
+
+        if (!is_null($schedule)) {
+            $params['send_after'] = $schedule;
+        }
+
+        return $this->sendNotificationCustom($params);
     }
 
     /**
      * Send a notification with custom parameters defined in
-     * https://documentation.onesignal.com/reference#section-example-code-create-notification
+     * @see https://documentation.onesignal.com/reference#section-example-code-create-notification
+     *
      * @param array $parameters
-     * @return mixed
+     * @return \GuzzleHttp\Promise\PromiseInterface|\Psr\Http\Message\ResponseInterface
      */
-    public function sendNotificationCustom($parameters = []){
-        $this->requiresAuth();
-        $this->usesJSON();
-
+    public function sendNotificationCustom($parameters = [])
+    {
         // Make sure to use app_id
         $parameters['app_id'] = $this->appId;
 
         // Make sure to use included_segments
-        if (empty($parameters['included_segments']) && empty($parameters['include_player_ids'])) {
+        if (
+            empty($parameters['included_segments']) &&
+            empty($parameters['include_player_ids'])
+        ) {
             $parameters['included_segments'] = ['all'];
+        }
+
+        // Make sure send_after is formatted properly when an instance of \DateTimeInterface is used
+        if (
+            !empty($parameters['send_after']) &&
+            ($send_after = $parameters['send_after']) &&
+            $send_after instanceof \DateTimeInterface
+        ) {
+            $parameters['send_after'] = $send_after->format('Y-m-d H:i:sO');
         }
 
         $parameters = array_merge($parameters, $this->additionalParams);
 
-        $this->headers['body'] = json_encode($parameters);
-        $this->headers['buttons'] = json_encode($parameters);
-        $this->headers['verify'] = false;
-        return $this->post(self::ENDPOINT_NOTIFICATIONS);
+        $data = [
+            'headers' => [
+                'Authorization' => "Basic {$this->restApiKey}"
+            ],
+            'json' => $parameters,
+            'verify' => false
+        ];
+
+        return $this->post(self::ENDPOINT_NOTIFICATIONS, $data);
     }
 
     /**
      * Creates a user/player
      *
      * @param array $parameters
-     * @return mixed
+     * @return \GuzzleHttp\Promise\PromiseInterface|\Psr\Http\Message\ResponseInterface
      * @throws \Exception
      */
-    public function createPlayer(Array $parameters) {
-        if(!isset($parameters['device_type']) or !is_numeric($parameters['device_type'])) {
+    public function createPlayer(array $parameters = [])
+    {
+        if (!isset($parameters['device_type']) or !is_numeric($parameters['device_type'])) {
             throw new \Exception('The `device_type` param is required as integer to create a player(device)');
         }
-        return $this->sendPlayer($parameters, 'POST', self::ENDPOINT_PLAYERS);
+
+        return $this->sendPlayer($parameters, false, self::ENDPOINT_PLAYERS);
     }
 
     /**
      * Edit a user/player
      *
      * @param array $parameters
-     * @return mixed
+     * @return \GuzzleHttp\Promise\PromiseInterface|\Psr\Http\Message\ResponseInterface
      */
-    public function editPlayer(Array $parameters) {
-        return $this->sendPlayer($parameters, 'PUT', self::ENDPOINT_PLAYERS . '/' . $parameters['id']);
+    public function editPlayer(array $parameters = [])
+    {
+        return $this->sendPlayer($parameters, true, self::ENDPOINT_PLAYERS . '/' . $parameters['id']);
     }
 
     /**
      * Create or update a by $method value
      *
      * @param array $parameters
-     * @param $method
-     * @param $endpoint
-     * @return mixed
+     * @param bool $put
+     * @param string $endpoint
+     * @return \GuzzleHttp\Promise\PromiseInterface|\Psr\Http\Message\ResponseInterface
      */
-    private function sendPlayer(Array $parameters, $method, $endpoint)
+    private function sendPlayer(array $parameters, bool $put = false, string $endpoint = self::ENDPOINT_PLAYERS)
     {
-        $this->requiresAuth();
-        $this->usesJSON();
-
         $parameters['app_id'] = $this->appId;
-        $this->headers['body'] = json_encode($parameters);
 
-        $method = strtolower($method);
-        return $this->{$method}($endpoint);
+        $data = [
+            'json' => $parameters
+        ];
+
+        if ($put) {
+            return $this->put($endpoint, $data);
+        }
+
+        return $this->post($endpoint, $data);
     }
 
-    public function post($endPoint) {
-        if($this->requestAsync === true) {
-            $promise = $this->client->postAsync(self::API_URL . $endPoint, $this->headers);
-            return (is_callable($this->requestCallback) ? $promise->then($this->requestCallback) : $promise);
+    /**
+     * @param string $endPoint
+     * @param array $data
+     * @return \GuzzleHttp\Promise\PromiseInterface|\Psr\Http\Message\ResponseInterface
+     */
+    private function post(string $endPoint, array $data)
+    {
+        if ($this->requestAsync === true) {
+            $promise = $this->client->postAsync(self::API_URL . $endPoint, $data);
+
+            if (is_callable($this->requestCallback)) {
+                $promise = $promise->then($this->requestCallback);
+            }
+
+            return $promise;
         }
-        return $this->client->post(self::API_URL . $endPoint, $this->headers);
+
+        return $this->client->post(self::API_URL . $endPoint, $data);
     }
 
-    public function put($endPoint) {
-        if($this->requestAsync === true) {
-            $promise = $this->client->putAsync(self::API_URL . $endPoint, $this->headers);
-            return (is_callable($this->requestCallback) ? $promise->then($this->requestCallback) : $promise);
+    /**
+     * @param string $endPoint
+     * @param array $data
+     * @return \GuzzleHttp\Promise\PromiseInterface|\Psr\Http\Message\ResponseInterface
+     */
+    private function put(string $endPoint, array $data)
+    {
+        if ($this->requestAsync === true) {
+            $promise = $this->client->putAsync(self::API_URL . $endPoint, $data);
+
+            if (is_callable($this->requestCallback)) {
+                $promise = $promise->then($this->requestCallback);
+            }
+
+            return $promise;
         }
-        return $this->client->put(self::API_URL . $endPoint, $this->headers);
+
+        return $this->client->put(self::API_URL . $endPoint, $data);
     }
 }
